@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<meta charset="UTF-8" />
+	<title>ONLINE STORE utopia</title>
+	<link href="/css/reset.css" th:href="@{/css/reset.css}" rel="stylesheet" />
+	<link href="/css/style.css" th:href="@{/css/style.css}" rel="stylesheet" />
+</head>
+
+<body>
+	<header th:insert="fragments/page_header::pageHeader"></header>
+
+	<main>
+		<div class="container cart">
+
+			<h2>カート</h2>
+
+			<div class="noData" th:if="${cart == null || cart.size()== 0}">
+				<p class="info">カート情報はありません。</p>
+			</div>
+
+			<table class="cartTable" th:if="${cart != null && cart.size() >0}">
+				<tr>
+					<th>選択</th>
+					<th>画像</th>
+					<th>商品名</th>
+					<th>価格(円)</th>
+					<th>個数</th>
+					<th>小計(円)</th>
+				</tr>
+				<tr th:each="cart: ${cart}">
+					<td><input type="checkbox" name="id" class="checkList" th:value="${cart.id}" /></td>
+					<td><img class="itemImage" th:src="${cart.imageFullPath}" th:alt="${cart.imageFullPath}" /></td>
+					<td th:text="${cart.productName}" />
+					<td class="price" th:text="${cart.price}" />
+					<td class="productCount" th:text="${cart.productCount}" />
+					<td class="subTotal" th:text="${cart.subTotal}" />
+				</tr>
+
+				<tr>
+					<td class="totalArea"></td>
+					<td class="totalArea"></td>
+					<td class="totalArea">合計(円)</td>
+					<td class="totalArea"></td>
+					<td class="totalArea" id="totalCount" />　
+					<td class="totalArea" id="totalPrice" />
+				</tr>
+			</table>
+
+			<div class="buttonArea" th:if="${cart != null && cart.size() >0}">
+				<button id="removeBtn" disabled>削除</button>
+				<form action="/utopia/settlement/">
+					<button type="submit" id="buyBtn">購入</button>
+				</form>
+			</div>
+		</div>
+	</main>
+
+
+	<script th:inline="javascript">
+		$(() => {
+			calcTotalArea();
+
+			$('#removeBtn').on('click', () => {
+				let checkedList = $('.checkList:checked');
+				let checkedIdList = [];
+				for (checked of checkedList) {
+					checkedIdList.push($(checked).val());
+				}
+
+				removeCart(checkedList, checkedIdList);
+			});
+
+			$('.checkList').on('change', changeDisable);
+
+			$('#buyBtn').on('click', function () {
+				let userId = /*[[${loginSession.getId()}]]*/ 0;
+				if (userId == 0 && isEmpty($('#hiddenUserName').val())) {
+					alert("ログインしてください。");
+					return false;
+				}
+			});
+
+		});
+
+
+		let removeCart = (checkedList, checkedIdList) => {
+			$.ajax({
+				type: 'POST',
+				url: '/utopia/cart/delete',
+				data: JSON.stringify({'checkedIdList': checkedIdList}),
+				contentType: 'application/json',
+			})
+
+				.then((result) => {
+					for (checked of checkedList) {
+						$(checked).parent().parent().remove();
+					}
+
+
+					let checkList = $('.checkList');
+					if (checkList.length === 0) {
+						location.replace('/utopia/cart/');
+					}
+
+					calcTotalArea();
+
+					changeDisable();
+				}, () => {
+					alert('Error:ajax connection failed');
+				});
+
+		}
+
+		let changeDisable = (event) => {
+			let checkList = $('.checkList');
+			let disabled = true;
+			for (let check of checkList) {
+				if ($(check).prop('checked')) {
+					disabled = false;
+					break;
+				}
+			}
+
+			$("#removeBtn").prop("disabled", disabled);
+		}
+
+
+		let calcTotalArea = () => {
+			let subtotalList = $('.subTotal');
+			let countList = $('.productCount');
+			let totalPrice = 0;
+			let totalCount = 0;
+
+			$(subtotalList).each((i, subtotal) => {
+				totalPrice += parseInt($(subtotal).text());
+				totalCount += parseInt($(countList[i]).text());
+			});
+
+			$('#totalCount').text(totalCount);
+			$('#totalPrice').text(totalPrice);
+		}
+	</script>
+
+</body>
+
+</html>
